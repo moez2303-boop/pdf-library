@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import ReadAloudPanel from "./ReadAloudPanel";
 import { getPdfBlob } from "../db";
+import { useReadAloud } from "../hooks/useReadAloud";
 import type { Book } from "../types";
 
 interface ReaderProps {
@@ -118,6 +120,15 @@ export default function Reader({ book, onClose, onProgress }: ReaderProps) {
     [book.numPages],
   );
 
+  const [readAloudOpen, setReadAloudOpen] = useState(false);
+  const goToNextPage = useCallback(() => goTo(pageNum + 1), [goTo, pageNum]);
+  const readAloud = useReadAloud({
+    pdf,
+    pageNum,
+    numPages: book.numPages,
+    onAutoAdvance: goToNextPage,
+  });
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight" || e.key === " ") {
@@ -177,8 +188,46 @@ export default function Reader({ book, onClose, onProgress }: ReaderProps) {
           </p>
           <p className="text-[11px] text-paper/50 truncate">{book.author}</p>
         </div>
-        <div className="w-20" />
+        <div className="w-20 flex justify-end">
+          {readAloud.supported && !loading && !error && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (readAloudOpen) readAloud.stop();
+                setReadAloudOpen((v) => !v);
+              }}
+              aria-label={readAloudOpen ? "Hide read-aloud controls" : "Read this page aloud"}
+              aria-pressed={readAloudOpen}
+              className={`cursor-pointer h-8 w-8 rounded-full flex items-center justify-center transition-colors
+                ${readAloudOpen ? "bg-accent text-paper" : "bg-white/10 text-paper/70 hover:bg-white/20"}`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 14v-2a9 9 0 0 1 18 0v2" />
+                <path d="M21 14v3a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h3Z" />
+                <path d="M3 14v3a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3Z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
+
+      {readAloudOpen && (
+        <ReadAloudPanel
+          status={readAloud.status}
+          onPlay={readAloud.play}
+          onPause={readAloud.pause}
+          onStop={readAloud.stop}
+          voices={readAloud.voices}
+          voiceURI={readAloud.voiceURI}
+          onVoiceChange={readAloud.setVoiceURI}
+          rate={readAloud.rate}
+          onRateChange={readAloud.setRate}
+          autoAdvance={readAloud.autoAdvance}
+          onAutoAdvanceChange={readAloud.setAutoAdvance}
+          chunkProgress={readAloud.chunkProgress}
+        />
+      )}
 
       <div
         ref={containerRef}

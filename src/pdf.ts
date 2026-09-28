@@ -70,6 +70,19 @@ export async function renderCoverThumbnail(
   }
 }
 
+export async function getPageText(
+  pdf: PDFDocumentProxy,
+  pageNum: number,
+): Promise<string> {
+  const page = await pdf.getPage(pageNum);
+  const textContent = await page.getTextContent();
+  return textContent.items
+    .map((item) => ("str" in item ? item.str : ""))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const SPINE_COLORS = [
   "#8a3b2e",
   "#2f5233",
